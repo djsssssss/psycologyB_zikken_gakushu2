@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>計算時間測定</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
+    background: #f5f5f0;
+    color: #1a1a1a;
+    margin: 0;
+    padding: 2rem 1rem;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .container {
+    width: 100%;
+    max-width: 640px;
+    background: #ffffff;
+    border: 1px solid rgba(0,0,0,0.1);
+    border-radius: 12px;
+    padding: 2rem;
+  }
+  /* 共通タイトル(各画面の上部に表示) */
+  .header {
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+    padding-bottom: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+  .header-title {
+    font-size: 22px;
+    font-weight: 500;
+    margin: 0 0 0.5rem;
+    color: #1a1a1a;
+  }
+  .header-desc {
+    font-size: 14px;
+    color: #666;
+    line-height: 1.7;
+    margin: 0;
+    white-space: pre-wrap;
+  }
+  h2 {
+    font-size: 16px;
+    font-weight: 500;
+    margin: 0 0 1rem;
+    color: #555;
+  }
+  .progress {
+    font-size: 13px;
+    color: #888;
+    margin-bottom: 1rem;
+  }
+  .problem {
+    font-size: 28px;
+    font-weight: 500;
+    margin: 2rem 0;
+    padding: 1.5rem;
+    background: #f8f8f3;
+    border-radius: 8px;
+    text-align: center;
+    min-height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    word-break: break-word;
+  }
+  .answer-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 1rem;
+  }
+  input[type="text"], textarea {
+    flex: 1;
+    width: 100%;
+    padding: 12px 14px;
+    font-size: 16px;
+    border: 1px solid rgba(0,0,0,0.15);
+    border-radius: 8px;
+    outline: none;
+    font-family: inherit;
+  }
+  input[type="text"]:focus, textarea:focus {
+    border-color: #888;
+  }
+  textarea {
+    resize: vertical;
+    min-height: 60px;
+    line-height: 1.6;
+  }
+  button {
+    padding: 12px 20px;
+    font-size: 14px;
+    background: #1a1a1a;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+  }
+  button:hover { background: #333; }
+  button.secondary {
+    background: transparent;
+    color: #1a1a1a;
+    border: 1px solid rgba(0,0,0,0.15);
+  }
+  button.secondary:hover { background: #f5f5f0; }
+  button.danger {
+    background: transparent;
+    color: #c43030;
+    border: 1px solid rgba(196,48,48,0.3);
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+  button.danger:hover { background: rgba(196,48,48,0.05); }
+  button.small {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+  .timer {
+    font-size: 13px;
+    color: #888;
+    text-align: center;
+    margin-top: 0.5rem;
+    font-variant-numeric: tabular-nums;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 8px;
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+    font-variant-numeric: tabular-nums;
+  }
+  th {
+    font-weight: 500;
+    color: #666;
+    font-size: 12px;
+    letter-spacing: 0.5px;
+  }
+  td.correct { color: #1d7d4a; }
+  td.wrong { color: #c43030; }
+  .summary {
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background: #f8f8f3;
+    border-radius: 8px;
+    font-size: 14px;
+    line-height: 1.8;
+  }
+  .summary strong {
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+  .actions {
+    margin-top: 1.5rem;
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+  .name-row {
+    margin-bottom: 1rem;
+  }
+  .name-row label,
+  .field label {
+    display: block;
+    font-size: 13px;
+    color: #888;
+    margin-bottom: 6px;
+  }
+  .field {
+    margin-bottom: 1rem;
+  }
+  /* 編集画面の問題リスト */
+  .edit-list {
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .edit-row {
+    display: grid;
+    grid-template-columns: 28px 1fr 1fr auto;
+    gap: 8px;
+    align-items: center;
+    padding: 10px;
+    border-bottom: 1px solid rgba(0,0,0,0.06);
+    background: #fff;
+  }
+  .edit-row:last-child { border-bottom: none; }
+  .edit-row .num {
+    font-size: 12px;
+    color: #aaa;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+  .edit-row input {
+    padding: 8px 10px;
+    font-size: 14px;
+  }
+  .edit-row input::placeholder { color: #bbb; }
+  .edit-toolbar {
+    display: flex;
+    gap: 8px;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .edit-info {
+    font-size: 12px;
+    color: #888;
+    margin-top: 0.5rem;
+  }
+  .top-link {
+    text-align: right;
+    margin-bottom: 0.5rem;
+  }
+  .top-link a {
+    font-size: 13px;
+    color: #666;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  .top-link a:hover { color: #1a1a1a; text-decoration: underline; }
+  .saved-flash {
+    display: inline-block;
+    font-size: 12px;
+    color: #1d7d4a;
+    margin-left: 8px;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .saved-flash.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- 共通ヘッダー(JSで動的に設定) -->
+  <div class="header">
+    <h1 class="header-title" id="header-title">計算時間測定</h1>
+    <p class="header-desc" id="header-desc"></p>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- 開始画面                                     -->
+  <!-- ============================================ -->
+  <div id="start-view">
+    <div class="top-link">
+      <a id="goto-edit">問題と説明を編集</a>
+    </div>
+    <div class="name-row">
+      <label for="participant-name">お名前(任意)</label>
+      <input type="text" id="participant-name" placeholder="例:山田太郎" autocomplete="off">
+    </div>
+    <div class="actions">
+      <button id="start-btn">開始</button>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- 問題画面                                     -->
+  <!-- ============================================ -->
+  <div id="quiz-view" style="display:none;">
+    <div class="progress" id="progress">問題 1 / 10</div>
+    <div class="problem" id="problem">準備中…</div>
+    <div class="answer-row">
+      <input type="text" id="answer" placeholder="答えを入力" autocomplete="off">
+      <button id="submit-btn">提出</button>
+    </div>
+    <div class="timer" id="timer">0.00 秒</div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- 結果画面                                     -->
+  <!-- ============================================ -->
+  <div id="result-view" style="display:none;">
+    <h2>結果</h2>
+    <div class="summary" id="summary"></div>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>問題</th>
+          <th>回答</th>
+          <th>正解</th>
+          <th>時間</th>
+        </tr>
+      </thead>
+      <tbody id="result-body"></tbody>
+    </table>
+    <div class="actions">
+      <button class="secondary" id="export-btn">CSV書き出し</button>
+      <button id="restart-btn">もう一度</button>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- 編集画面                                     -->
+  <!-- ============================================ -->
+  <div id="edit-view" style="display:none;">
+    <h2>設定の編集 <span class="saved-flash" id="saved-flash">保存しました</span></h2>
+
+    <div class="field">
+      <label for="edit-title">タイトル(全画面の上部に表示)</label>
+      <input type="text" id="edit-title" placeholder="計算時間測定">
+    </div>
+
+    <div class="field">
+      <label for="edit-desc">説明(全画面の上部に表示。改行可)</label>
+      <textarea id="edit-desc" rows="4" placeholder="例:画面に表示された問題に、できるだけ早く答えてください。"></textarea>
+    </div>
+
+    <div class="field">
+      <label>問題リスト</label>
+      <div class="edit-list" id="edit-list"></div>
+      <div class="edit-info">左:問題文 / 右:正解。前後の空白は自動で無視されます。</div>
+    </div>
+
+    <div class="edit-toolbar">
+      <button class="secondary small" id="add-problem">+ 問題を追加</button>
+      <button class="secondary small" id="reset-default">初期設定に戻す</button>
+      <div style="flex:1"></div>
+      <button id="save-edit">保存して戻る</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ============================================================
+  // 初期設定(初回起動時に使われます)
+  //
+  // ページを開いた後は、画面右上の「問題と説明を編集」から
+  // 自由に書き換えられます。編集内容はブラウザに自動保存されます。
+  // ============================================================
+  const DEFAULT_TITLE = "計算時間測定";
+  const DEFAULT_DESC  = "画面に表示された問題に、できるだけ早く答えてください。\n答えを入力して「提出」を押すと、次の問題が表示されます。";
+
+  const DEFAULT_PROBLEMS = [
+    { question: "3 + 5",        answer: "8"   },
+    { question: "12 × 7",       answer: "84"  },
+    { question: "144 ÷ 12",     answer: "12"  },
+    { question: "25²",          answer: "625" },
+    { question: "17 + 28",      answer: "45"  },
+    { question: "100 − 37",     answer: "63"  },
+    { question: "9 × 13",       answer: "117" },
+    { question: "√169",         answer: "13"  },
+    { question: "7! ÷ 6!",      answer: "7"   },
+    { question: "2³ + 3²",      answer: "17"  },
+  ];
+  // ============================================================
+
+  // ローカルストレージのキー
+  const STORAGE_KEY = "calc_timer_settings_v1";
+
+  // 状態管理
+  let settings = loadSettings();
+  let currentIdx = 0;
+  let startTime = 0;
+  let timerInterval = null;
+  let participantName = "";
+  const records = [];
+
+  // DOM要素の取得
+  const $startView   = document.getElementById('start-view');
+  const $quizView    = document.getElementById('quiz-view');
+  const $resultView  = document.getElementById('result-view');
+  const $editView    = document.getElementById('edit-view');
+  const $problem     = document.getElementById('problem');
+  const $answer      = document.getElementById('answer');
+  const $submit      = document.getElementById('submit-btn');
+  const $progress    = document.getElementById('progress');
+  const $timer       = document.getElementById('timer');
+  const $resultBody  = document.getElementById('result-body');
+  const $summary     = document.getElementById('summary');
+  const $name        = document.getElementById('participant-name');
+  const $headerTitle = document.getElementById('header-title');
+  const $headerDesc  = document.getElementById('header-desc');
+  const $editTitle   = document.getElementById('edit-title');
+  const $editDesc    = document.getElementById('edit-desc');
+  const $editList    = document.getElementById('edit-list');
+  const $savedFlash  = document.getElementById('saved-flash');
+
+  // 設定の保存・読込
+  function loadSettings() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const s = JSON.parse(raw);
+        if (s && Array.isArray(s.problems)) return s;
+      }
+    } catch(e) {}
+    return {
+      title: DEFAULT_TITLE,
+      desc:  DEFAULT_DESC,
+      problems: JSON.parse(JSON.stringify(DEFAULT_PROBLEMS)),
+    };
+  }
+  function saveSettings() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    } catch(e) {}
+  }
+
+  // ヘッダーの反映
+  function renderHeader() {
+    $headerTitle.textContent = settings.title || DEFAULT_TITLE;
+    document.title = settings.title || DEFAULT_TITLE;
+    $headerDesc.textContent = settings.desc || "";
+    $headerDesc.style.display = (settings.desc && settings.desc.trim()) ? 'block' : 'none';
+  }
+
+  // 画面切替
+  function showView(name) {
+    $startView.style.display  = (name === 'start')  ? 'block' : 'none';
+    $quizView.style.display   = (name === 'quiz')   ? 'block' : 'none';
+    $resultView.style.display = (name === 'result') ? 'block' : 'none';
+    $editView.style.display   = (name === 'edit')   ? 'block' : 'none';
+  }
+
+  // 開始処理
+  function start() {
+    if (!settings.problems || settings.problems.length === 0) {
+      alert('問題が一つもありません。「問題と説明を編集」から問題を追加してください。');
+      return;
+    }
+    participantName = $name.value.trim();
+    currentIdx = 0;
+    records.length = 0;
+    showView('quiz');
+    showProblem();
+  }
+
+  // 問題を表示
+  function showProblem() {
+    $problem.textContent = settings.problems[currentIdx].question;
+    $progress.textContent = `問題 ${currentIdx + 1} / ${settings.problems.length}`;
+    $answer.value = '';
+    $answer.focus();
+    startTime = performance.now();
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(updateTimer, 50);
+  }
+
+  function updateTimer() {
+    const elapsed = (performance.now() - startTime) / 1000;
+    $timer.textContent = elapsed.toFixed(2) + ' 秒';
+  }
+
+  // 回答の提出
+  function submitAnswer() {
+    const elapsed = performance.now() - startTime;
+    const userAns = $answer.value.trim();
+    if (userAns === '') return;
+
+    const correct = String(settings.problems[currentIdx].answer).trim();
+    records.push({
+      question: settings.problems[currentIdx].question,
+      answer: correct,
+      userAnswer: userAns,
+      correct: userAns === correct,
+      timeMs: elapsed,
+    });
+
+    currentIdx++;
+    if (currentIdx >= settings.problems.length) {
+      finish();
+    } else {
+      showProblem();
+    }
+  }
+
+  // 終了処理
+  function finish() {
+    clearInterval(timerInterval);
+    showView('result');
+
+    let totalMs = 0, correctCount = 0;
+    records.forEach(r => {
+      totalMs += r.timeMs;
+      if (r.correct) correctCount++;
+    });
+    const avg = totalMs / records.length / 1000;
+    const total = totalMs / 1000;
+
+    const nameLine = participantName
+      ? `<div>お名前: <strong>${escapeHtml(participantName)}</strong></div>`
+      : '';
+    $summary.innerHTML = `
+      ${nameLine}
+      <div>正答数: <strong>${correctCount} / ${records.length}</strong></div>
+      <div>合計時間: <strong>${total.toFixed(2)} 秒</strong></div>
+      <div>平均時間: <strong>${avg.toFixed(2)} 秒</strong></div>
+    `;
+
+    $resultBody.innerHTML = '';
+    records.forEach((r, i) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${i + 1}</td>
+        <td>${escapeHtml(r.question)}</td>
+        <td class="${r.correct ? 'correct' : 'wrong'}">${escapeHtml(r.userAnswer)}</td>
+        <td>${escapeHtml(r.answer)}</td>
+        <td>${(r.timeMs / 1000).toFixed(2)} 秒</td>
+      `;
+      $resultBody.appendChild(tr);
+    });
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+  }
+
+  // CSV書き出し
+  function exportCSV() {
+    const header = ['name', 'index', 'question', 'user_answer', 'correct_answer', 'is_correct', 'time_seconds'];
+    const rows = records.map((r, i) => [
+      `"${participantName.replace(/"/g, '""')}"`,
+      i + 1,
+      `"${r.question.replace(/"/g, '""')}"`,
+      `"${r.userAnswer.replace(/"/g, '""')}"`,
+      `"${r.answer.replace(/"/g, '""')}"`,
+      r.correct ? 1 : 0,
+      (r.timeMs / 1000).toFixed(3),
+    ].join(','));
+    const csv = [header.join(','), ...rows].join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const safeName = participantName.replace(/[^\p{L}\p{N}_-]/gu, '') || 'result';
+    a.href = url;
+    a.download = `${safeName}_${new Date().toISOString().slice(0,19).replace(/[:T]/g,'-')}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function restart() {
+    $name.value = participantName;
+    showView('start');
+    $name.focus();
+  }
+
+  // ============================================================
+  // 編集画面
+  // ============================================================
+  function openEdit() {
+    $editTitle.value = settings.title || '';
+    $editDesc.value  = settings.desc  || '';
+    renderEditList();
+    showView('edit');
+  }
+
+  function renderEditList() {
+    $editList.innerHTML = '';
+    settings.problems.forEach((p, i) => {
+      const row = document.createElement('div');
+      row.className = 'edit-row';
+      row.innerHTML = `
+        <div class="num">${i + 1}</div>
+        <input type="text" class="q-input" value="${escapeAttr(p.question)}" placeholder="問題">
+        <input type="text" class="a-input" value="${escapeAttr(p.answer)}" placeholder="正解">
+        <button class="danger" data-idx="${i}">削除</button>
+      `;
+      $editList.appendChild(row);
+    });
+
+    // 入力変更時に内部データへ反映
+    $editList.querySelectorAll('.q-input').forEach((el, i) => {
+      el.addEventListener('input', () => { settings.problems[i].question = el.value; });
+    });
+    $editList.querySelectorAll('.a-input').forEach((el, i) => {
+      el.addEventListener('input', () => { settings.problems[i].answer = el.value; });
+    });
+    $editList.querySelectorAll('button.danger').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.dataset.idx, 10);
+        settings.problems.splice(idx, 1);
+        renderEditList();
+      });
+    });
+  }
+
+  function escapeAttr(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+  }
+
+  function addProblem() {
+    settings.problems.push({ question: "", answer: "" });
+    renderEditList();
+    // 最後の問題欄にフォーカス
+    const inputs = $editList.querySelectorAll('.q-input');
+    if (inputs.length) inputs[inputs.length - 1].focus();
+  }
+
+  function resetDefault() {
+    if (!confirm('タイトル・説明・問題リストをすべて初期設定に戻します。よろしいですか?')) return;
+    settings = {
+      title: DEFAULT_TITLE,
+      desc:  DEFAULT_DESC,
+      problems: JSON.parse(JSON.stringify(DEFAULT_PROBLEMS)),
+    };
+    saveSettings();
+    openEdit();
+    renderHeader();
+  }
+
+  function saveEdit() {
+    settings.title = $editTitle.value.trim() || DEFAULT_TITLE;
+    settings.desc  = $editDesc.value;
+    // 空の問題行は除外
+    settings.problems = settings.problems
+      .map(p => ({ question: String(p.question).trim(), answer: String(p.answer).trim() }))
+      .filter(p => p.question !== '' && p.answer !== '');
+    saveSettings();
+    renderHeader();
+
+    // 保存フラッシュ
+    $savedFlash.classList.add('show');
+    setTimeout(() => $savedFlash.classList.remove('show'), 1200);
+
+    showView('start');
+  }
+
+  // ============================================================
+  // イベント設定
+  // ============================================================
+  document.getElementById('start-btn').addEventListener('click', start);
+  document.getElementById('goto-edit').addEventListener('click', openEdit);
+  $submit.addEventListener('click', submitAnswer);
+  $answer.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') submitAnswer();
+  });
+  $name.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') start();
+  });
+  document.getElementById('export-btn').addEventListener('click', exportCSV);
+  document.getElementById('restart-btn').addEventListener('click', restart);
+  document.getElementById('add-problem').addEventListener('click', addProblem);
+  document.getElementById('reset-default').addEventListener('click', resetDefault);
+  document.getElementById('save-edit').addEventListener('click', saveEdit);
+
+  // 初期表示
+  renderHeader();
+  showView('start');
+</script>
+</body>
+</html>
